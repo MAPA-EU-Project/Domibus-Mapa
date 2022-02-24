@@ -1,83 +1,58 @@
-import os, time
-import threading
+import glob
+import os
 import time
-import urllib.request
+import requests
 import json
 
-indir="/home/ubuntu/filestore/IN"
-outdir="/home/ubuntu/filestore/OUT"
+def anon(line):
+     url = 'https://prod.pangeamt.com:8443/NexRelay/v1/translate'
+     data = {
+	"src":"en",
+	"tgt":"en",
+	"text":[line],
+	"engine":948,
+	"username":"admin@pangeanic.mt",
+	"runparms":
+		{"Sensitivity":"0.8",
+		"Type":"Redaction",
+		"Tags":[]
+		}
+        }
 
-path_to_watch = indir
+     headers = {'Content-type': 'application/json'}
 
-def watcher():
-    before={}
-    for root, subdirs, files in os.walk(path_to_watch):
-        for file in os.listdir(root):
-            filePath = os.path.join(root, file)
-            if os.path.isdir(filePath):
-                pass
-            else:
-                before[filePath]=None
+     r = requests.post(url, data=json.dumps(data), headers=headers)
+     ans = r.text
+     print(ans)
+     translationresponse = json.loads(ans, strict=False)
+     #print(translationresponse[0][0]['tgt'])
+     return translationresponse[0][0]['tgt']
 
-    #before = dict([(f, None) for f in os.listdir(path_to_watch)])
-    while 1:
-        time.sleep(1)
-        after={}
-        for root, subdirs, files in os.walk(path_to_watch):
-            for file in os.listdir(root):
-                filePath = os.path.join(root, file)
-                if os.path.isdir(filePath):
-                    pass
-                else:
-                    after[filePath]=None
-        #after = dict([(f, None) for f in os.listdir(path_to_watch)])
+filestore="/home/ubuntu/filestore/"
+# root_dir needs a trailing slash (i.e. /root/dir/)
+error=False
+while not error:
+     #filestore IN to client IN
+     print("checking filestore/IN")
+     for filename in glob.iglob(filestore+"IN/" + '**/*.txt', recursive=True):
+          #read filename line by line, send to anonimize and write in anon file
+          filein = open(filename, 'r')
+          lines = filein.readlines()
+          fileout = open('tmp.anon.txt', 'w')
+          for line in lines:
+              anonline=anon(line)
+              fileout.write(anonline)
+          fileout.close()
 
+          #cp anonfile into OUT bo
+          command="cp tmp.anon.txt " + filestore+ 'OUT/' + os.path.basename(filename).replace(".txt",".anon.txt")
+          print(command)
+          os.system(command)
+          #delete in file
+          command="rm -f tmp.anon.txt " + filename
+          print(command)
+          os.system(command)
 
-        added = [f for f in after if not f in before]
-        removed = [f for f in before if not f in after]
-        if added:
-            print("Added: ", ", ".join(added))
-        if removed:
-            print("Removed: ", ", ".join(removed))
-        before = after
-
-        for f in added:
-            base = os.path.basename(f)
-            (name, ext) = os.path.splitext(base)
-            print ("added", base, name, ext)
-            if ext==".txt":
-                print("to translate", base)
-                translated=[]
-                with open(f, "r") as myfile:
-                    for linea in myfile:
-                        print("linea:", linea)
-                        body = {
-                                "src":"es",
-                                "tgt":"en",
-                                "apikey":"000000",
-                                "mode":"2",
-                                "text":[linea]
-                                }
-
-                        myurl = "http://prod.pangeamt.com:8080/NexRelay/v1/translate"
-                        req = urllib.request.Request(myurl)
-                        req.add_header('Content-Type', 'application/json; charset=utf-8')
-                        jsondata = json.dumps(body)
-                        jsondataasbytes = jsondata.encode('utf-8')  # needs to be bytes
-                        req.add_header('Content-Length', len(jsondataasbytes))
-                        print(jsondataasbytes)
-                        response = urllib.request.urlopen(req, jsondataasbytes)
-                        # Convert bytes to string type and string type to dict
-                        string = response.read().decode('utf-8')
-                        json_obj = json.loads(string)
-
-                        translated.append(json_obj[0][0]["tgt"])
-
-                with open(outdir + "/" + base, 'w') as f:
-                    for item in translated:
-                        print("Translated:",item)
-                        f.write("%s\n" % item)
-
-watcher()
+     time.sleep(5)
 
 
