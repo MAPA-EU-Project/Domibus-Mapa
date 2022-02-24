@@ -43,10 +43,11 @@ waits for it to be processed (translated). When the file is translated, it copie
 
 ## Test
 1. Create a txt file with some english sentences to be anonimized by Mapa, for instance:
-> My name is John Taylor
-> I live in Paris
-> I'm currently working for Pangeanic
-
+```
+My name is John Taylor
+I live in Paris
+I'm currently working for Pangeanic
+```
 2. Use any sftp client to send the file to the client box at 34.249.115.177:/home/ubuntu/client/out (user:client, password:------)
 
 3. Wait for the process to complete, typically one minute for small files. Use any sftp client to check 34.249.115.177:/home/ubuntu/client/out where the anonimized file will be created.
